@@ -1,0 +1,27 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["netlify/functions/**"]
+  external_node_modules = ["pdf-parse", "pdf-lib", "mammoth"]
+
+[functions."bms-extract"]
+  node_bundler = "esbuild"
+  external_node_modules = ["pdf-parse", "pdf-lib", "mammoth"]
+
+[functions."bms-generate-pdf"]
+  node_bundler = "esbuild"
+  external_node_modules = ["pdf-parse", "pdf-lib", "mammoth"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
