@@ -13,13 +13,13 @@ function parseMultipart(body, contentType) {
   const boundary = boundaryMatch[1];
 
   const buf = Buffer.isBuffer(body) ? body : Buffer.from(body, "base64");
-  const delimiter = Buffer.from(\`\\r\\n--\${boundary}\`);
-  const closeDelimiter = Buffer.from(\`\\r\\n--\${boundary}--\`);
+  const delimiter = Buffer.from(`\\r\\n--${boundary}`);
+  const closeDelimiter = Buffer.from(`\\r\\n--${boundary}--`);
 
   const fields = {};
   let file = null;
 
-  const startBoundary = Buffer.from(\`--\${boundary}\\r\\n\`);
+  const startBoundary = Buffer.from(`--${boundary}\\r\\n`);
   let pos = buf.indexOf(startBoundary);
   if (pos === -1) throw new Error("Could not find start boundary");
   pos += startBoundary.length;
@@ -72,7 +72,7 @@ async function extractTextFromWord(buffer) {
 }
 
 // ─── LLM extraction ───────────────────────────────────────────────────────────
-const SYSTEM_PROMPT = \`You are a recruitment data extraction engine for BMS (Bristol Myers Squibb) candidate submissions. Output ONLY a raw JSON object — no markdown, no explanation, no code fences.
+const SYSTEM_PROMPT = `You are a recruitment data extraction engine for BMS (Bristol Myers Squibb) candidate submissions. Output ONLY a raw JSON object — no markdown, no explanation, no code fences.
 
 The output JSON must strictly match this schema:
 {
@@ -82,15 +82,15 @@ The output JSON must strictly match this schema:
   "rightToWork": "string",
   "workerStatus": "string",
   "otherProcesses": "string"
-}\`;
+}`;
 
 async function extractWithLLM(cvText, notes, roleTitle, client) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set in Netlify environment variables.");
 
-  const userMessage = \`
+  const userMessage = `
 === INTERVIEW NOTES ===
-\${notes || "No notes provided."}
+${notes || "No notes provided."}
 === END NOTES ===
 
 === CV TEXT ===
@@ -98,18 +98,18 @@ Extract the candidate's name and experience from this CV.
 Focus on: current role, relevant experience summary, technical skills, sector experience, qualifications, achievements.
 Do NOT include personal contact details (phone, email, address, LinkedIn) in any extracted field.
 
-\${cvText}
+${cvText}
 === END CV ===
 
 Extract the following and return ONLY this JSON object:
 {
   "candidateName": "Full name from CV",
   "noticePeriod": "Notice period from notes or CV (e.g. '3 months', '1 month')",
-  "relevantExperience": "3-5 paragraph professional summary of why this candidate suits the \${roleTitle || "role"} at \${client || "the client"}. Include technical skills, achievements, sector experience, qualifications. No personal details.",
+  "relevantExperience": "3-5 paragraph professional summary of why this candidate suits the ${roleTitle || "role"} at ${client || "the client"}. Include technical skills, achievements, sector experience, qualifications. No personal details.",
   "rightToWork": "Right to work status (e.g. 'EU Citizen', 'Stamp 4')",
   "workerStatus": "Worker status (e.g. 'PAYE', 'Limited Company')",
   "otherProcesses": "Any other ongoing interview processes, or blank if none"
-}\`;
+}`;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -128,7 +128,7 @@ Extract the following and return ONLY this JSON object:
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(\`Claude API error \${response.status}: \${err}\`);
+    throw new Error(`Claude API error ${response.status}: ${err}`);
   }
 
   const result = await response.json();
@@ -190,7 +190,7 @@ export const handler = async (event) => {
       return {
         statusCode: 413,
         body: JSON.stringify({
-          error: \`CV file exceeds 5.5 MB. Please compress it and re-upload.\`,
+          error: `CV file exceeds 5.5 MB. Please compress it and re-upload.`,
         }),
       };
     }
@@ -203,7 +203,7 @@ export const handler = async (event) => {
       return {
         statusCode: 422,
         body: JSON.stringify({
-          error: \`Could not extract text from Word document: \${err.message}. Try re-saving the file and re-uploading.\`,
+          error: `Could not extract text from Word document: ${err.message}. Try re-saving the file and re-uploading.`,
         }),
       };
     }
@@ -225,7 +225,7 @@ export const handler = async (event) => {
       return {
         statusCode: 500,
         body: JSON.stringify({
-          error: \`Could not parse AI response: \${err.message}. Click Extract again — it usually succeeds on retry.\`,
+          error: `Could not parse AI response: ${err.message}. Click Extract again — it usually succeeds on retry.`,
         }),
       };
     }
@@ -246,7 +246,7 @@ export const handler = async (event) => {
     console.error("[bms-extract]", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: \`Server error: \${err.message}\` }),
+      body: JSON.stringify({ error: `Server error: ${err.message}` }),
     };
   }
 };

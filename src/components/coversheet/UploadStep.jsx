@@ -3,9 +3,9 @@ import React, { useState, useRef, useCallback } from "react";
 const MAX_SIZE = 5.5 * 1024 * 1024;
 
 function formatBytes(bytes) {
-  if (bytes < 1024) return \`\${bytes} B\`;
-  if (bytes < 1024 * 1024) return \`\${(bytes / 1024).toFixed(1)} KB\`;
-  return \`\${(bytes / (1024 * 1024)).toFixed(1)} MB\`;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function today() {
@@ -36,7 +36,7 @@ export default function UploadStep({ onExtracted }) {
     }
     
     if (file.size > MAX_SIZE) {
-      return \`File is \${formatBytes(file.size)} — maximum is 5.5 MB. Please compress it and re-upload.\`;
+      return `File is ${formatBytes(file.size)} — maximum is 5.5 MB. Please compress it and re-upload.`;
     }
     return null;
   };
@@ -142,11 +142,11 @@ export default function UploadStep({ onExtracted }) {
                 onDragOver={onDragOver}
                 onDragLeave={onDragLeave}
                 onClick={() => fileRef.current?.click()}
-                className={\`
+                className={`
                   relative border-2 border-dashed rounded-xl transition-all cursor-pointer overflow-hidden
-                  \${dragging ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}
-                  \${cvFile ? "border-green-400 bg-green-50" : ""}
-                \`}
+                  ${dragging ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}
+                  ${cvFile ? "border-green-400 bg-green-50" : ""}
+                `}
               >
                 <input
                   type="file"
