@@ -3,9 +3,9 @@ import React, { useState, useRef, useCallback } from "react";
 const MAX_SIZE = 5.5 * 1024 * 1024;
 
 function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024) return \`\${bytes} B\`;
+  if (bytes < 1024 * 1024) return \`\${(bytes / 1024).toFixed(1)} KB\`;
+  return \`\${(bytes / (1024 * 1024)).toFixed(1)} MB\`;
 }
 
 function today() {
@@ -22,15 +22,21 @@ export default function UploadStep({ onExtracted }) {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
   const fileRef = useRef(null);
 
   const validateFile = (file) => {
     if (!file) return "Please select a file.";
-    if (file.type !== "application/pdf") {
-      return "PDF files only. BMS requires PDF format — Word, Google Docs, and other formats are not accepted and risk automatic rejection.";
+    
+    const isWordDoc = file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || 
+                      file.name.toLowerCase().endsWith(".docx");
+                      
+    if (!isWordDoc) {
+      return "Word (.docx) files only. Please upload the CV as a Word document for accurate parsing. The system will automatically convert it to PDF for the final BMS submission.";
     }
+    
     if (file.size > MAX_SIZE) {
-      return `File is ${formatBytes(file.size)} — maximum is 5.5 MB. Please compress it at ilovepdf.com and re-upload.`;
+      return \`File is \${formatBytes(file.size)} — maximum is 5.5 MB. Please compress it and re-upload.\`;
     }
     return null;
   };
@@ -54,9 +60,10 @@ export default function UploadStep({ onExtracted }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!cvFile) { setError("Please upload the candidate CV (PDF only)."); return; }
+    if (!cvFile) { setError("Please upload the candidate CV (Word .docx only)."); return; }
     if (!roleTitle.trim()) { setError("Please enter the Role Title."); return; }
     if (!client.trim()) { setError("Please enter the Client / Company name."); return; }
+
     setError("");
     setLoading(true);
 
@@ -107,58 +114,60 @@ export default function UploadStep({ onExtracted }) {
           <div>
             <p className="text-sm font-semibold text-amber-900 mb-2">BMS CV & Document Requirements (Non-Negotiable)</p>
             <ul className="text-xs text-amber-800 space-y-1">
-              <li>☐ CV is in <strong>PDF format only</strong></li>
               <li>☐ CV uses the <strong>official BMS CV template</strong></li>
               <li>☐ CV contains <strong>NO company branding</strong></li>
-              <li>☐ No Word, Google Docs, or alternative formats attached</li>
-              <li>☐ All uploaded documents are <strong>PDF only</strong></li>
+              <li>☐ Final submission must be <strong>PDF only</strong></li>
             </ul>
-            <p className="text-xs text-amber-700 mt-2 font-medium">❗ Any non-PDF or non-BMS template = automatic rejection risk</p>
+            <p className="text-xs text-amber-700 mt-2 font-medium">💡 Note: Upload a Word (.docx) file here for accurate parsing. The system will automatically convert it to PDF for the final submission.</p>
           </div>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Error */}
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
-            <span className="text-red-500 text-base leading-none mt-0.5">▲</span>
-            <p className="text-sm text-red-700 font-medium">{error}</p>
-          </div>
-        )}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+          <span className="text-red-500 mt-0.5">▲</span>
+          <p className="text-sm text-red-800">{error}</p>
+        </div>
+      )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Left column */}
           <div className="lg:col-span-3 space-y-5">
             {/* CV Upload */}
             <div className="card p-5">
-              <p className="section-title mb-4">Step 1 — Candidate CV (PDF Only)</p>
+              <p className="section-title mb-4">Step 1 — Candidate CV (Word .docx ONLY)</p>
               <div
-                className={`relative rounded-xl border-2 border-dashed transition-all cursor-pointer ${
-                  dragging ? "border-blue-400 bg-blue-50" : cvFile ? "border-green-300 bg-green-50" : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100"
-                }`}
                 onDrop={onDrop}
                 onDragOver={onDragOver}
                 onDragLeave={onDragLeave}
                 onClick={() => fileRef.current?.click()}
+                className={\`
+                  relative border-2 border-dashed rounded-xl transition-all cursor-pointer overflow-hidden
+                  \${dragging ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}
+                  \${cvFile ? "border-green-400 bg-green-50" : ""}
+                \`}
               >
                 <input
-                  ref={fileRef}
                   type="file"
-                  accept="application/pdf"
+                  ref={fileRef}
                   className="hidden"
-                  onChange={(e) => handleFile(e.target.files[0])}
+                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(e) => {
+                    if (e.target.files[0]) handleFile(e.target.files[0]);
+                    e.target.value = null;
+                  }}
                 />
                 {cvFile ? (
-                  <div className="flex items-center gap-3 p-4">
-                    <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{cvFile.name}</p>
-                      <p className="text-xs text-gray-500">{formatBytes(cvFile.size)}</p>
+                  <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                        DOCX
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{cvFile.name}</p>
+                        <p className="text-xs text-gray-500">{formatBytes(cvFile.size)}</p>
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -175,8 +184,8 @@ export default function UploadStep({ onExtracted }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium text-gray-700">Drop PDF here or click to browse</p>
-                    <p className="text-xs text-gray-400 mt-1">PDF only · Max 5.5 MB</p>
+                    <p className="text-sm font-medium text-gray-700">Drop Word (.docx) file here or click to browse</p>
+                    <p className="text-xs text-gray-400 mt-1">Word .docx only · Max 5.5 MB</p>
                   </div>
                 )}
               </div>
