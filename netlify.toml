@@ -6,15 +6,15 @@
 [functions]
   node_bundler = "esbuild"
   included_files = ["netlify/functions/**"]
-  external_node_modules = ["pdf-parse", "pdf-lib", "mammoth"]
+  external_node_modules = ["mammoth", "pdf-lib"]
 
 [functions."bms-extract"]
   node_bundler = "esbuild"
-  external_node_modules = ["pdf-parse", "pdf-lib", "mammoth"]
+  external_node_modules = ["mammoth", "pdf-lib"]
 
 [functions."bms-generate-pdf"]
   node_bundler = "esbuild"
-  external_node_modules = ["pdf-parse", "pdf-lib", "mammoth"]
+  external_node_modules = ["mammoth", "pdf-lib"]
 
 [[redirects]]
   from = "/api/*"
