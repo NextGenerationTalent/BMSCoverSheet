@@ -307,7 +307,7 @@ async function generateBMSPDF({ candidateData, cvBase64, roleTitle, client, cons
     thickness: 0.5,
     color: borderGrey,
   });
-  page1.drawText("CONFIDENTIAL — Submitted via Next Generation Recruitment", {
+  page1.drawText("CONFIDENTIAL — BMS Candidate Submission", {
     x: margin,
     y: 22,
     size: 7,
@@ -322,70 +322,72 @@ async function generateBMSPDF({ candidateData, cvBase64, roleTitle, client, cons
     color: midGrey,
   });
 
-  // ── Pages 2+: CV (original PDF with redaction overlay) ───────────────────────
+  // ── Page 2: CV attachment instruction ───────────────────────────────────────
+  // The CV is a Word (.docx) file — it cannot be embedded directly into a PDF.
+  // Per BMS process, the cover sheet PDF and the Word CV are submitted together.
+  const notePage = doc.addPage([W, H]);
 
-  if (cvBase64) {
-    try {
-      const cvBytes = Buffer.from(cvBase64, "base64");
-      const cvDoc = await PDFDocument.load(cvBytes, { ignoreEncryption: true });
-      const cvPageCount = cvDoc.getPageCount();
-      const cvPageIndices = Array.from({ length: cvPageCount }, (_, i) => i);
-      const copiedPages = await doc.copyPages(cvDoc, cvPageIndices);
+  notePage.drawLine({
+    start: { x: margin, y: H - margin },
+    end: { x: W - margin, y: H - margin },
+    thickness: 0.5,
+    color: borderGrey,
+  });
 
-      for (let i = 0; i < copiedPages.length; i++) {
-        const cvPage = copiedPages[i];
-        doc.addPage(cvPage);
+  notePage.drawText("CV ATTACHMENT NOTE", {
+    x: margin,
+    y: H - margin - 20,
+    size: 11,
+    font: fontBold,
+    color: darkGrey,
+  });
 
-        // On the first CV page, draw white rectangles over the top contact area
-        // This covers phone, email, address which typically appear in the top 80-100px
-        if (i === 0) {
-          const { width: cvW, height: cvH } = cvPage.getSize();
+  notePage.drawText("The candidate CV has been uploaded as a Word (.docx) file.", {
+    x: margin,
+    y: H - margin - 45,
+    size: 10,
+    font: fontRegular,
+    color: darkGrey,
+  });
 
-          // White bar over top contact zone (top 90px of the page)
-          // Most CV templates put contact info in the header area
-          cvPage.drawRectangle({
-            x: 0,
-            y: cvH - 90,
-            width: cvW,
-            height: 90,
-            color: white,
-            opacity: 1,
-          });
+  notePage.drawText("Please attach the original .docx CV file alongside this cover sheet", {
+    x: margin,
+    y: H - margin - 62,
+    size: 10,
+    font: fontRegular,
+    color: darkGrey,
+  });
 
-          // Also cover any contact details that appear in a sidebar (right 35% of top half)
-          // This handles two-column CVs where contact is on the right
-          cvPage.drawRectangle({
-            x: cvW * 0.62,
-            y: cvH - 200,
-            width: cvW * 0.38,
-            height: 120,
-            color: white,
-            opacity: 1,
-          });
+  notePage.drawText("when submitting to BMS.", {
+    x: margin,
+    y: H - margin - 79,
+    size: 10,
+    font: fontRegular,
+    color: darkGrey,
+  });
 
-          // Redacted label
-          cvPage.drawText("[ Personal details redacted ]", {
-            x: 50,
-            y: cvH - 20,
-            size: 7,
-            font: fontOblique,
-            color: midGrey,
-          });
-        }
-      }
-    } catch (err) {
-      console.error("[bms-generate-pdf] CV embed error:", err.message);
-      // Add a note page if CV embed fails
-      const notePage = doc.addPage([W, H]);
-      notePage.drawText("CV could not be embedded. Please attach separately.", {
-        x: margin,
-        y: H / 2,
-        size: 11,
-        font: fontRegular,
-        color: midGrey,
-      });
-    }
-  }
+  notePage.drawLine({
+    start: { x: margin, y: 35 },
+    end: { x: W - margin, y: 35 },
+    thickness: 0.5,
+    color: borderGrey,
+  });
+
+  notePage.drawText("CONFIDENTIAL — BMS Candidate Submission", {
+    x: margin,
+    y: 22,
+    size: 7,
+    font: fontRegular,
+    color: midGrey,
+  });
+
+  notePage.drawText(`${date}`, {
+    x: W - margin - 60,
+    y: 22,
+    size: 7,
+    font: fontRegular,
+    color: midGrey,
+  });
 
   const pdfBytes = await doc.save();
   return Buffer.from(pdfBytes);
