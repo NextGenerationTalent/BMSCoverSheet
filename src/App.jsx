@@ -7,13 +7,17 @@ export default function App() {
   const [step, setStep] = useState("upload"); // upload | review | success
   const [extractedData, setExtractedData] = useState(null);
   const [cvBase64, setCvBase64] = useState(null);
+  const [cvMimeType, setCvMimeType] = useState(null);
+  const [cvText, setCvText] = useState(null);
   const [cvOriginalName, setCvOriginalName] = useState(null);
   const [submissionMeta, setSubmissionMeta] = useState(null);
   const [downloadFilename, setDownloadFilename] = useState(null);
 
-  function handleExtracted({ candidateData, cvBase64, cvOriginalName, roleTitle, client, consultant, date }) {
+  function handleExtracted({ candidateData, cvBase64, cvMimeType, cvText, cvOriginalName, roleTitle, client, consultant, date }) {
     setExtractedData(candidateData);
     setCvBase64(cvBase64);
+    setCvMimeType(cvMimeType);
+    setCvText(cvText);
     setCvOriginalName(cvOriginalName);
     setSubmissionMeta({ roleTitle, client, consultant, date });
     setStep("review");
@@ -28,6 +32,8 @@ export default function App() {
     setStep("upload");
     setExtractedData(null);
     setCvBase64(null);
+    setCvMimeType(null);
+    setCvText(null);
     setCvOriginalName(null);
     setSubmissionMeta(null);
     setDownloadFilename(null);
@@ -69,6 +75,8 @@ export default function App() {
           <ReviewStep
             initialData={extractedData}
             cvBase64={cvBase64}
+            cvMimeType={cvMimeType}
+            cvText={cvText}
             cvOriginalName={cvOriginalName}
             submissionMeta={submissionMeta}
             onDownloaded={handleDownloaded}

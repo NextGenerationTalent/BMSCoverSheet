@@ -27,14 +27,18 @@ export default function UploadStep({ onExtracted }) {
 
   const validateFile = (file) => {
     if (!file) return "Please select a file.";
-    
-    const isWordDoc = file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || 
-                      file.name.toLowerCase().endsWith(".docx");
-                      
-    if (!isWordDoc) {
-      return "Word (.docx) files only. Please upload the CV as a Word document for accurate parsing. The system will automatically convert it to PDF for the final BMS submission.";
+
+    const name = file.name.toLowerCase();
+    const isAccepted =
+      file.type === "application/pdf" ||
+      file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      file.type === "application/msword" ||
+      name.endsWith(".pdf") || name.endsWith(".docx") || name.endsWith(".doc");
+
+    if (!isAccepted) {
+      return "PDF or Word (.doc, .docx) files only.";
     }
-    
+
     if (file.size > MAX_SIZE) {
       return `File is ${formatBytes(file.size)} — maximum is 5.5 MB. Please compress it and re-upload.`;
     }
@@ -60,7 +64,7 @@ export default function UploadStep({ onExtracted }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!cvFile) { setError("Please upload the candidate CV (Word .docx only)."); return; }
+    if (!cvFile) { setError("Please upload the candidate CV (PDF or Word)."); return; }
     if (!roleTitle.trim()) { setError("Please enter the Role Title."); return; }
     if (!client.trim()) { setError("Please enter the Client / Company name."); return; }
 
@@ -86,6 +90,8 @@ export default function UploadStep({ onExtracted }) {
       onExtracted({
         candidateData: json.candidateData,
         cvBase64: json.cvBase64,
+        cvMimeType: json.cvMimeType,
+        cvText: json.cvText,
         cvOriginalName: json.cvOriginalName,
         roleTitle,
         client,
@@ -118,7 +124,7 @@ export default function UploadStep({ onExtracted }) {
               <li>☐ CV contains <strong>NO company branding</strong></li>
               <li>☐ Final submission must be <strong>PDF only</strong></li>
             </ul>
-            <p className="text-xs text-amber-700 mt-2 font-medium">💡 Note: Upload a Word (.docx) file here for accurate parsing. The system will automatically convert it to PDF for the final submission.</p>
+            <p className="text-xs text-amber-700 mt-2 font-medium">💡 PDF is recommended — the original pages are copied in directly. Word files are supported too (rendered as clean text pages, since PDF tooling can't embed Word documents natively).</p>
           </div>
         </div>
       </div>
@@ -136,7 +142,7 @@ export default function UploadStep({ onExtracted }) {
           <div className="lg:col-span-3 space-y-5">
             {/* CV Upload */}
             <div className="card p-5">
-              <p className="section-title mb-4">Step 1 — Candidate CV (Word .docx ONLY)</p>
+              <p className="section-title mb-4">Step 1 — Candidate CV (PDF or Word)</p>
               <div
                 onDrop={onDrop}
                 onDragOver={onDragOver}
@@ -152,7 +158,7 @@ export default function UploadStep({ onExtracted }) {
                   type="file"
                   ref={fileRef}
                   className="hidden"
-                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
                   onChange={(e) => {
                     if (e.target.files[0]) handleFile(e.target.files[0]);
                     e.target.value = null;
@@ -162,7 +168,7 @@ export default function UploadStep({ onExtracted }) {
                   <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                        DOCX
+                        {cvFile.name.toLowerCase().endsWith(".pdf") ? "PDF" : "DOC"}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{cvFile.name}</p>
@@ -184,8 +190,8 @@ export default function UploadStep({ onExtracted }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium text-gray-700">Drop Word (.docx) file here or click to browse</p>
-                    <p className="text-xs text-gray-400 mt-1">Word .docx only · Max 5.5 MB</p>
+                    <p className="text-sm font-medium text-gray-700">Drop PDF or Word file here or click to browse</p>
+                    <p className="text-xs text-gray-400 mt-1">PDF recommended · Word also accepted · Max 5.5 MB</p>
                   </div>
                 )}
               </div>

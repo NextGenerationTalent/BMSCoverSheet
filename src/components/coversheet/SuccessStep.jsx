@@ -10,7 +10,7 @@ export default function SuccessStep({ filename, candidateName, onReset }) {
     });
   };
 
-  const belineNote = `Candidate submitted via BMS Submission Generator. PDF includes completed BMS Candidate Submission form with relevant experience, right to work, worker status, and notice period. CV appended with personal details redacted as per BMS requirements.`;
+  const belineNote = `Candidate submitted via BMS Submission Generator. PDF includes completed BMS Candidate Submission form with relevant experience, right to work / worker status, and notice period. CV appended with personal details redacted as per BMS requirements.`;
 
   return (
     <div className="max-w-xl mx-auto space-y-6 py-8">
