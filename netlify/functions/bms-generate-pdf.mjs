@@ -25,11 +25,7 @@
 // submitted PDF document."
 
 import { Buffer } from "buffer";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { BMS_LOGO_BASE64 } from "./lib/bms-logo-data.mjs";
 
 // ─── Measured geometry (see header comment) ───────────────────────────────────
 // All values in PDF points, bottom-left origin, A4 page.
@@ -181,9 +177,11 @@ async function buildCoverPage(pdfDoc, data) {
   const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
 
   // Logo — byte-identical to the one embedded in the real client template.
+  // Embedded as base64 data (see bms-logo-data.mjs) rather than read from
+  // disk, so this can't fail based on how Netlify's bundler resolves file
+  // paths at runtime.
   try {
-    const logoPath = join(__dirname, "bms-logo.png");
-    const logoBytes = readFileSync(logoPath);
+    const logoBytes = Buffer.from(BMS_LOGO_BASE64, "base64");
     const logoImage = await pdfDoc.embedPng(logoBytes);
     page.drawImage(logoImage, { x: LOGO_X, y: LOGO_Y, width: LOGO_W, height: LOGO_H });
   } catch (err) {

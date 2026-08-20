@@ -101,6 +101,45 @@ Output lands in `test/`. Render it to check visually:
 pdftoppm -jpeg -r 150 test/BMS_Submission_*.pdf test/out
 ```
 
+## Real bugs found and fixed along the way
+
+Two separate crashes hit this project, both worth understanding if
+something breaks again:
+
+1. **`pdfjs-dist` caused an unhandled crash (HTTP 502) under Netlify's
+   serverless function environment**, not a normal error. Traded for a
+   simpler, dependency-free fixed-band redaction (see above) that cannot
+   time out or crash.
+2. **The logo file couldn't be found at runtime.** The code used
+   `import.meta.url` to resolve `bms-logo.png`'s path relative to the
+   function file — this works fine locally, but Netlify's bundler
+   sometimes compiles functions to CommonJS output, where
+   `import.meta.url` comes back empty. That crashed `fileURLToPath()` at
+   module-load time, before the request handler even ran — which is why
+   it surfaced as a bare 502 with zero error detail instead of a normal
+   caught error. Fixed by embedding the logo as a base64 constant
+   (`netlify/functions/lib/bms-logo-data.mjs`) instead of reading it from
+   disk, removing the dependency on file-path resolution entirely.
+
+**If you change the logo or the redaction approach later**, don't
+reintroduce file-path resolution (`import.meta.url`, `__dirname`, etc.) in
+these two functions — embed data as a constant instead, the way the logo
+already is. It's the only way to be sure it survives whichever bundling
+mode Netlify picks.
+
+**Verifying against Netlify's actual bundler, not just local Node:**
+running a function locally with plain `node` uses Node's own ESM loader
+and will NOT catch a bug like #2 above — it only shows up when compiled
+through Netlify's actual bundler. To check faithfully:
+
+```bash
+npm install -g netlify-cli
+netlify functions:build --src netlify/functions
+# Watch for warnings, especially "import.meta" ones.
+unzip netlify/functions/bms-generate-pdf.zip -d /tmp/check
+node -e "require('/tmp/check/bms-generate-pdf.js').handler({httpMethod:'POST', body: '...'})"
+```
+
 ## If BMS issues a new template
 
 Don't hand-edit the constants in `bms-generate-pdf.mjs`. Re-run the
