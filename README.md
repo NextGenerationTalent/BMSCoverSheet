@@ -23,11 +23,17 @@ details redacted. One combined PDF, ready to submit via Beeline.
   pages copied in directly. Word CVs: pdf-lib can't embed a Word file
   directly, so the extracted text is paginated as plain text pages instead
   (same fallback used in `NextGen-Cover-Sheet`).
-- **Personal-detail redaction is adaptive, not a fixed-size box.** It finds
-  the actual name/address/phone/email cluster on the CV's own terms and
-  redacts only that, rather than a guessed pixel height that either misses
-  content or (as an earlier bug in this codebase did) eats into legitimate
-  CV content below it.
+- **Personal-detail redaction is a fixed-height band on page 1**, not
+  adaptive text-position detection. An earlier version used `pdfjs-dist` to
+  find and redact exactly the name/contact cluster wherever it sat on the
+  page — that proved too heavy for Netlify's serverless environment and
+  caused the function to crash outright (HTTP 502) rather than fail
+  cleanly. This trades some precision for reliability: a fixed white band
+  covers a typical name + address/phone/email header. Known limitation: an
+  unusually short header may lose part of the next heading too; an
+  unusually tall one (e.g. a wrapped address plus a LinkedIn line) may not
+  be fully covered. Revisit with a lighter-weight adaptive approach if this
+  proves too imprecise in practice.
 - **Right to Work is a single required field**, matching the real
   template's single combined cell — never split into two side-by-side
   columns, and never inferred by the AI from the CV. It's always left

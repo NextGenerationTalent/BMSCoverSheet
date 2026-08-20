@@ -136,126 +136,33 @@ function redactPersonalDetails(text) {
     .replace(LINKEDIN_RE, "[redacted]");
 }
 
-const SECTION_HEADING_RE = /^(professional\s+summary|summary|profile|about(\s+me)?|objective|career\s+objective|work\s+experience|experience|employment(\s+history)?|education|qualifications?|certifications?|key\s+skills|skills|competenc(?:y|ies)|core\s+competenc(?:y|ies)|achievements?|references?|interests?|hobbies|projects?|publications?|languages?|training)\s*:?$/i;
-
-// Many PDF generators insert a stray extra space inside a heading's glyphs
-// (kerning/tracking artifacts), e.g. "P rofile" or "Work Ex perience" — the
-// space is real in the text layer, not a rendering illusion. Matching only
-// the space-collapsed form of both the candidate line and the heading list
-// catches these without becoming so loose it starts matching body text.
-const HEADING_KEYWORDS_NOSPACE = [
-  "professionalsummary", "summary", "profile", "about", "aboutme", "objective",
-  "careerobjective", "workexperience", "experience", "employmenthistory",
-  "education", "qualification", "qualifications", "certification", "certifications",
-  "keyskills", "skills", "competency", "competencies", "corecompetency", "corecompetencies",
-  "achievement", "achievements", "reference", "references", "interest", "interests",
-  "hobbies", "project", "projects", "publication", "publications", "language", "languages",
-  "training",
-];
-
-function isHeadingLine(text) {
-  if (SECTION_HEADING_RE.test(text)) return true;
-  const collapsed = (text || "").replace(/\s+/g, "").replace(/:$/, "").toLowerCase();
-  return HEADING_KEYWORDS_NOSPACE.includes(collapsed);
-}
-
-async function redactPersonalDetailsInPdf(pages, cvBytes) {
-  // SAFE_FLOOR is a last-resort fallback height, used ONLY if detection
-  // fails entirely (encrypted/corrupt PDF). When detection succeeds, the
-  // redacted band is sized to the actual measured header content — using
-  // SAFE_FLOOR as a floor there was a real bug: on short headers (name +
-  // one contact line, ~50pt tall) it forced a 150pt-tall white box that
-  // swallowed the next section's heading and several lines of legitimate
-  // CV content along with the personal details. Over-redaction is its own
-  // fidelity failure, not a safe default.
-  const SAFE_FLOOR = 150;
-  let detectionSucceeded = false;
-
-  try {
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const doc = await pdfjsLib.getDocument({
-      data: new Uint8Array(cvBytes),
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      disableFontFace: true,
-    }).promise;
-
-    const { rgb } = await import("pdf-lib");
-    const white = rgb(1, 1, 1);
-
-    for (let i = 0; i < pages.length && i < doc.numPages; i++) {
-      const pdfjsPage = await doc.getPage(i + 1);
-      const textContent = await pdfjsPage.getTextContent();
-      const page = pages[i];
-      const { width: pW, height: pH } = page.getSize();
-
-      const buckets = new Map();
-      for (const item of textContent.items) {
-        if (!item.str || !item.str.trim()) continue;
-        const key = Math.round(item.transform[5] / 2) * 2;
-        if (!buckets.has(key)) buckets.set(key, []);
-        buckets.get(key).push(item);
-      }
-      const lines = [...buckets.values()]
-        .map((items) => ({
-          y: items[0].transform[5],
-          text: items.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim(),
-          minX: Math.min(...items.map((it) => it.transform[4])),
-          maxX: Math.max(...items.map((it) => it.transform[4] + (it.width || 0))),
-          maxH: Math.max(...items.map((it) => it.height || Math.abs(it.transform[3]) || 10)),
-          items,
-        }))
-        .sort((a, b) => b.y - a.y);
-
-      let headerBandBottomY = null;
-
-      if (i === 0) {
-        const headerLines = [];
-        for (const line of lines) {
-          if (headerLines.length >= 10) break;
-          if (isHeadingLine(line.text)) break;
-          if (line.text.length > 100) break;
-          headerLines.push(line);
-        }
-        const headerHasPersonal = headerLines.some(
-          (l) => isPersonalLine(l.text) || l.items.some((it) => isPersonalLine(it.str))
-        );
-        if (headerHasPersonal && headerLines.length) {
-          const lastLine = headerLines[headerLines.length - 1];
-          const bottomY = lastLine.y - lastLine.maxH * 0.35 - 10;
-          // Sized to the actual measured header block only — no artificial
-          // minimum. This is real detected content, not a fallback guess.
-          const blockH = pH - bottomY;
-          headerBandBottomY = pH - blockH;
-          page.drawRectangle({ x: 0, y: headerBandBottomY, width: pW, height: blockH, color: white });
-          detectionSucceeded = true;
-        }
-      }
-
-      for (const line of lines) {
-        if (headerBandBottomY !== null && line.y >= headerBandBottomY) continue;
-        const matches = isPersonalLine(line.text) || line.items.some((it) => isPersonalLine(it.str));
-        if (!matches) continue;
-        const pad = 3;
-        const boxX = Math.max(0, line.minX - pad);
-        const boxW = Math.min(pW - boxX, line.maxX - line.minX + pad * 2);
-        const boxY = line.y - line.maxH * 0.3 - pad;
-        const boxH = line.maxH * 1.3 + pad * 2;
-        page.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, color: white });
-        detectionSucceeded = true;
-      }
-    }
-  } catch {
-    // Parsing failed (encrypted/corrupt PDF) — fall through to safety net.
-  }
-
-  if (!detectionSucceeded && pages.length) {
-    const { rgb } = await import("pdf-lib");
-    const white = rgb(1, 1, 1);
-    const first = pages[0];
-    const { width: pW, height: pH } = first.getSize();
-    first.drawRectangle({ x: 0, y: pH - SAFE_FLOOR, width: pW, height: SAFE_FLOOR, color: white });
-  }
+async function redactPersonalDetailsInPdf(pages) {
+  // Earlier version used pdfjs-dist to find and redact exactly the
+  // name/contact line cluster, wherever it actually sat on the page. That
+  // approach turned out to be too heavy/fragile for Netlify's serverless
+  // function environment — it caused an unhandled crash (HTTP 502, not a
+  // normal caught error) rather than a clean failure, likely a timeout or
+  // an incompatibility with pdfjs-dist's rendering internals outside a
+  // browser. Precision was traded for reliability: this draws one fixed
+  // white band across the top of page 1 only, sized generously enough to
+  // cover a typical name + address/phone/email header. No PDF parsing
+  // library is used here at all — just pdf-lib primitives already loaded
+  // elsewhere in this file — so this step cannot time out or crash.
+  //
+  // Known trade-off: a CV with an unusually short header (e.g. name and
+  // phone number only, no address) may lose part of the next heading too.
+  // A CV with an unusually tall header (long address wrapped to 2 lines,
+  // plus a LinkedIn URL) may not have every line fully covered. Flagged to
+  // NG as an accepted limitation — precise adaptive redaction can be
+  // revisited later with a lighter-weight approach if this proves too
+  // imprecise in practice.
+  const FIXED_BAND_H = 115;
+  if (!pages.length) return;
+  const { rgb } = await import("pdf-lib");
+  const white = rgb(1, 1, 1);
+  const first = pages[0];
+  const { width: pW, height: pH } = first.getSize();
+  first.drawRectangle({ x: 0, y: pH - FIXED_BAND_H, width: pW, height: FIXED_BAND_H, color: white });
 }
 
 // ─── Colours ───────────────────────────────────────────────────────────────────
@@ -435,7 +342,7 @@ async function buildCVPages(pdfDoc, cvBase64, cvMimeType, cvText, cvOriginalName
       const cvDoc = await PDFDocument.load(cvBytes, { ignoreEncryption: true });
       const pages = await pdfDoc.copyPages(cvDoc, cvDoc.getPageIndices());
       for (const p of pages) pdfDoc.addPage(p);
-      if (pages.length) await redactPersonalDetailsInPdf(pages, cvBytes);
+      if (pages.length) await redactPersonalDetailsInPdf(pages);
     } else {
       // Word (.doc/.docx) — pdf-lib cannot embed these directly, so the
       // extracted, redacted text is paginated instead.
