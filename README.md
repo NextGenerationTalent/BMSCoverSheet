@@ -103,8 +103,8 @@ pdftoppm -jpeg -r 150 test/BMS_Submission_*.pdf test/out
 
 ## Real bugs found and fixed along the way
 
-Two separate crashes hit this project, both worth understanding if
-something breaks again:
+Two separate crashes and one data-quality bug have hit this project, all
+worth understanding if something breaks again:
 
 1. **`pdfjs-dist` caused an unhandled crash (HTTP 502) under Netlify's
    serverless function environment**, not a normal error. Traded for a
@@ -120,6 +120,19 @@ something breaks again:
    caught error. Fixed by embedding the logo as a base64 constant
    (`netlify/functions/lib/bms-logo-data.mjs`) instead of reading it from
    disk, removing the dependency on file-path resolution entirely.
+3. **Duplicate cover-page table appears in the output.** This happens when
+   the file uploaded as "the CV" already has a filled BMS submission table
+   as its own first page — e.g. a candidate package someone assembled by
+   hand before uploading it here. The tool now detects this pattern (the
+   BMS template's own fixed labels — "Candidate Submission", "Relevant
+   Experience", "Right to Work", "Other Processes" — appearing together on
+   a page) and skips that page rather than merging it in as if it were
+   real CV content. It also stops the candidate-name auto-guess from ever
+   picking up template boilerplate text like "Candidate Submission" as a
+   name. If a genuinely unusual CV format still slips past this detection,
+   it's a pattern-matching heuristic (see `looksLikeDuplicateCoverPage` in
+   `bms-generate-pdf.mjs`), not foolproof — worth knowing if this ever
+   recurs with a different-looking duplicate.
 
 **If you change the logo or the redaction approach later**, don't
 reintroduce file-path resolution (`import.meta.url`, `__dirname`, etc.) in

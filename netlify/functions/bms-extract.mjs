@@ -176,11 +176,20 @@ async function extractWithLLM(cvText, notes, roleTitle, client) {
 // Very light candidate-name extraction — first non-empty line of the CV that
 // looks like a name (short, no digits, no @ sign). This is a fallback only;
 // the review step lets the consultant correct it, so a wrong guess here
-// never reaches the final document unreviewed.
+// never reaches the final document unreviewed. Excludes known BMS template
+// boilerplate phrases — if a candidate's own CV file already has a filled
+// BMS submission table prepended to it (e.g. prepared earlier by someone
+// else), the very first line of extracted text can literally be "Candidate
+// Submission" or similar, which would otherwise get guessed as the name.
+const NAME_GUESS_EXCLUDE = [
+  "candidate submission", "candidate name", "notice period", "relevant experience",
+  "right to work", "other processes", "bristol myers squibb", "bms",
+];
 function guessCandidateName(cvText) {
   const lines = (cvText || "").split("\n").map((l) => l.trim()).filter(Boolean);
-  for (const line of lines.slice(0, 5)) {
+  for (const line of lines.slice(0, 8)) {
     if (line.length > 2 && line.length < 60 && !/\d/.test(line) && !line.includes("@")) {
+      if (NAME_GUESS_EXCLUDE.includes(line.toLowerCase())) continue;
       return line;
     }
   }

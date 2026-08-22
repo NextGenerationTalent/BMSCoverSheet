@@ -132,6 +132,22 @@ function redactPersonalDetails(text) {
     .replace(LINKEDIN_RE, "[redacted]");
 }
 
+// Detects whether a page's extracted text is itself a filled BMS
+// "Candidate Submission" table rather than genuine CV content — e.g. a
+// candidate package where someone already prepended a completed submission
+// table before the real CV. Requires several of the template's own fixed
+// labels together (not just one word) so real CV content mentioning e.g.
+// "right to work" in passing doesn't get misidentified.
+function looksLikeDuplicateCoverPage(text) {
+  const t = (text || "").toLowerCase();
+  let hits = 0;
+  if (t.includes("candidate submission")) hits++;
+  if (t.includes("relevant experience")) hits++;
+  if (t.includes("right to work")) hits++;
+  if (t.includes("other processes")) hits++;
+  return hits >= 3;
+}
+
 async function redactPersonalDetailsInPdf(pages) {
   // Earlier version used pdfjs-dist to find and redact exactly the
   // name/contact line cluster, wherever it actually sat on the page. That
@@ -292,8 +308,19 @@ async function buildCoverPage(pdfDoc, data) {
 // ─── CV pages (page 2+) ────────────────────────────────────────────────────────
 
 async function buildCVTextPages(pdfDoc, cvText, cvOriginalName) {
-  const raw = (cvText || "").replace(/\r\n/g, "\n").trim();
+  let raw = (cvText || "").replace(/\r\n/g, "\n").trim();
   if (!raw) return;
+
+  // Same duplicate-cover-page problem can occur in a Word CV — strip a
+  // leading block that's actually a pre-filled submission table before
+  // paginating, rather than rendering it as if it were CV content.
+  if (looksLikeDuplicateCoverPage(raw.slice(0, 1500))) {
+    const otherProcessesIdx = raw.toLowerCase().indexOf("other processes");
+    if (otherProcessesIdx !== -1) {
+      const nextBreak = raw.indexOf("\n\n", otherProcessesIdx);
+      if (nextBreak !== -1) raw = raw.slice(nextBreak).trim();
+    }
+  }
 
   const { StandardFonts } = await import("pdf-lib");
   const W = 595, H = 842, M = 50;
@@ -338,7 +365,28 @@ async function buildCVPages(pdfDoc, cvBase64, cvMimeType, cvText, cvOriginalName
       if (!cvBase64) return;
       const cvBytes = Buffer.from(cvBase64, "base64");
       const cvDoc = await PDFDocument.load(cvBytes, { ignoreEncryption: true });
-      const pages = await pdfDoc.copyPages(cvDoc, cvDoc.getPageIndices());
+      let pageIndices = cvDoc.getPageIndices();
+
+      // Some uploaded "CVs" are actually a candidate package that already
+      // has a filled-in BMS submission table as its own first page (built
+      // separately, e.g. by a colleague, before being uploaded here). If we
+      // don't catch this, the final PDF ends up with two tables: the one
+      // this tool just built from the web form, followed by the file's own
+      // pre-existing one underneath. Detect that pattern and skip that page
+      // rather than merging it in as if it were part of the CV content.
+      try {
+        const { default: pdfParse } = await import("pdf-parse/lib/pdf-parse.js");
+        const parsed = await pdfParse(cvBytes, { max: 1 }); // first page only
+        if (looksLikeDuplicateCoverPage(parsed.text)) {
+          pageIndices = pageIndices.slice(1);
+        }
+      } catch {
+        // If detection fails for any reason, fall through and keep every
+        // page — better to risk an unwanted duplicate than to accidentally
+        // drop a real CV page.
+      }
+
+      const pages = await pdfDoc.copyPages(cvDoc, pageIndices);
       for (const p of pages) pdfDoc.addPage(p);
       if (pages.length) await redactPersonalDetailsInPdf(pages);
     } else {
