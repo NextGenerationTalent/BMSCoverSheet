@@ -233,7 +233,16 @@ async function buildCoverPage(pdfDoc, data) {
   const row3TopActual = row2Bot;
   const row3Bot = row3TopActual + Math.max(ROW3_MIN_BOT - ROW3_TOP, row3ContentH);
 
-  const ROW4_TOP_PAD = 28; // room for the fixed 2-line label ("Other processes" + italic instruction)
+  // The italic instruction text is long enough that it needs to wrap
+  // within the label column's width rather than being drawn as one line —
+  // drawing it unwrapped let it run straight through the vertical divider
+  // into the value column. Wrap it first, then size the row's top padding
+  // to however many lines that produces (varies slightly by font metrics,
+  // so don't hardcode a line count).
+  const instructionText = "(Does the candidate have any other ongoing processes? Please specify.)";
+  const labelColMaxW = LABEL_X1 - TBL_X0 - 12; // 6pt padding each side
+  const instructionLines = wrap(instructionText, fontItalic, 8, labelColMaxW);
+  const ROW4_TOP_PAD = 14 + instructionLines.length * 9 + 6; // "Other processes" label + wrapped instruction lines + gap before bullets
   const row4ContentH = measureBlockHeight(otherProcessesItems, LABEL_X1, TBL_X1, 9, 12, ROW4_TOP_PAD);
   const row4TopActual = row3Bot;
   const row4Bot = row4TopActual + Math.max(ROW4_MIN_BOT - ROW4_TOP, row4ContentH);
@@ -265,10 +274,12 @@ async function buildCoverPage(pdfDoc, data) {
   drawBulletBlock(page, rightToWorkItems, row3TopActual, LABEL_X1, TBL_X1, font, 9, 12, PAGE_H);
 
   // Row 4: Other processes (label + fixed italic instruction, verbatim from
-  // the client template)
+  // the client template, wrapped to fit the label column width)
   sd(page, "Other processes", { x: TBL_X0 + 6, y: PAGE_H - row4TopActual - 14, size: 11, font, color: BLACK });
-  sd(page, "(Does the candidate have any other ongoing processes? Please specify.)", {
-    x: TBL_X0 + 6, y: PAGE_H - row4TopActual - 24, size: 8, font: fontItalic, color: BLACK,
+  instructionLines.forEach((line, i) => {
+    sd(page, line, {
+      x: TBL_X0 + 6, y: PAGE_H - row4TopActual - 24 - i * 9, size: 8, font: fontItalic, color: BLACK,
+    });
   });
   drawBulletBlock(page, otherProcessesItems, row4TopActual, LABEL_X1, TBL_X1, font, 9, 12, PAGE_H, ROW4_TOP_PAD);
 
