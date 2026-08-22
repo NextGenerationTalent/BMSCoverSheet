@@ -302,6 +302,17 @@ async function buildCoverPage(pdfDoc, data) {
     thickness: BORDER_W, color: BLACK,
   });
 
+  // Missing until now: the boundary between the "Notice Period" label and
+  // its value cell — a 4-column row needs 3 internal dividers total, and
+  // only 2 were being drawn (LABEL_X1 above, plus this row's first split).
+  // Without it, a filled-in Notice Period value visually ran together with
+  // its own label instead of sitting in a separate bordered cell.
+  page.drawLine({
+    start: { x: ROW1_COLS[3], y: PAGE_H - ROW1_TOP },
+    end: { x: ROW1_COLS[3], y: PAGE_H - ROW1_BOT },
+    thickness: BORDER_W, color: BLACK,
+  });
+
   return page;
 }
 
@@ -420,6 +431,12 @@ export const handler = async (event) => {
       return {
         statusCode: 400,
         body: JSON.stringify({ error: "Right to Work / worker status is required — this must be an explicit answer, never inferred from the CV." }),
+      };
+    }
+    if (!candidateData?.noticePeriod?.trim()) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Notice Period is required." }),
       };
     }
 

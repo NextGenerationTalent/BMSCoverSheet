@@ -23,6 +23,7 @@ export default function ReviewStep({ initialData, cvBase64, cvMimeType, cvText, 
     if (!data.rightToWork.trim()) {
       return "Right to Work / worker status is required. This must be an explicit answer from the candidate or consultant — never inferred from the CV (an address or driving licence doesn't confirm current legal work status).";
     }
+    if (!data.noticePeriod.trim()) return "Notice Period is required.";
     return "";
   };
 
@@ -117,7 +118,7 @@ export default function ReviewStep({ initialData, cvBase64, cvMimeType, cvText, 
               <input className="field-input" placeholder="Full name" value={data.candidateName} onChange={set("candidateName")} />
             </div>
             <div className="p-4">
-              <label className="field-label">Notice Period</label>
+              <label className="field-label">Notice Period <span className="text-red-400">*</span></label>
               <input className="field-input" placeholder="e.g. 2 months" value={data.noticePeriod} onChange={set("noticePeriod")} />
             </div>
           </div>
